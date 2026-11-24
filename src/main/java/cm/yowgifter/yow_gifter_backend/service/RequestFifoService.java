@@ -46,7 +46,8 @@ public class RequestFifoService {
      */
     @Transactional
     public RequestDto joinQueue(Long donationId, String userEmail) {
-        Donation donation = donationRepository.findById(donationId)
+        // 🛠️ VERROUILLAGE PESSIMISTE : On bloque la ligne pour garantir l'ordre séquentiel des t_i
+        Donation donation = donationRepository.findByIdWithLock(donationId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Don introuvable."));
 
         if (donation.getStatus() == DonationStatus.GIVEN || donation.getStatus() == DonationStatus.SUSPENDED) {
@@ -65,6 +66,8 @@ public class RequestFifoService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Vous êtes déjà inscrit dans la file d'attente de cet objet.");
         }
 
+        // Génération du t_i (timestamp ultra précis). 
+        // Grâce au verrou, les utilisateurs seront traités strictement l'un après l'autre.
         Instant serverTimestamp = Instant.now();
 
         // Vérifier s'il y a déjà un prioritaire actif
@@ -97,7 +100,6 @@ public class RequestFifoService {
 
     /**
      * REQ-F11 : Désistement volontaire du bénéficiaire.
-     * Si le prioritaire se désiste, passage automatique et immédiat au suivant dans la file.
      */
     @Transactional
     public void cancelRequest(Long requestId, String userEmail) {
@@ -122,7 +124,6 @@ public class RequestFifoService {
 
     /**
      * REQ-F12 : Expiration automatique TTL du bénéficiaire prioritaire.
-     * Tâche planifiée qui s'exécute chaque minute pour vérifier les priorités dépassées.
      */
     @Scheduled(fixedRate = 60000)
     @Transactional
@@ -190,21 +191,21 @@ public class RequestFifoService {
         return dtos;
     }
 
+    /**
+     * 🛠️ APPLICATION DE LA FORMULE MATHÉMATIQUE :
+     * P(r_i) = 1 + Somme(I(t_j < t_i))
+     */
     private int getQueuePosition(Request target) {
         if (target.getStatus() == RequestStatus.PRIORITY) return 1;
         if (target.getStatus() != RequestStatus.WAITING) return 0;
 
-        List<Request> queue = requestRepository.findByDonationIdOrderByRequestedAtAsc(target.getDonation().getId());
-        int position = 1;
-        for (Request r : queue) {
-            if (r.getStatus() == RequestStatus.PRIORITY || r.getStatus() == RequestStatus.WAITING) {
-                if (r.getId().equals(target.getId())) {
-                    return position;
-                }
-                position++;
-            }
-        }
-        return position;
+        // Appel à PostgreSQL optimisé par index : compte le nombre de t_j < t_i
+        int countBefore = requestRepository.countRequestsBefore(
+                target.getDonation().getId(), 
+                target.getRequestedAt()
+        );
+        
+        return 1 + countBefore;
     }
 
     private void createConversationIfNotExist(Donation donation, User donor, User beneficiary) {

@@ -2,14 +2,17 @@ package cm.yowgifter.yow_gifter_backend.repository;
 
 import cm.yowgifter.yow_gifter_backend.domain.Donation;
 import cm.yowgifter.yow_gifter_backend.domain.enums.DonationStatus;
+import jakarta.persistence.LockModeType; // 🛠️ Ajouté
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock; // 🛠️ Ajouté
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional; // 🛠️ Ajouté
 
 @Repository
 public interface DonationRepository extends JpaRepository<Donation, Long> {
@@ -29,4 +32,9 @@ public interface DonationRepository extends JpaRepository<Donation, Long> {
             @Param("keyword") String keyword,
             Pageable pageable
     );
+
+    // 🛠️ LA MÉTHODE DE VERROUILLAGE PESSIMISTE (Garantit l'ordre séquentiel)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM Donation d WHERE d.id = :id")
+    Optional<Donation> findByIdWithLock(@Param("id") Long id);
 }

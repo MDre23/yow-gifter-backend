@@ -29,6 +29,13 @@ public class FileStorageService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le fichier téléversé est vide.");
         }
 
+        // 🛠️ VÉRIFICATION DE LA TAILLE (5 Mo max) - Ajouté ici
+        long maxSize = 5 * 1024 * 1024; // 5 Mo en octets
+        if (file.getSize() > maxSize) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'image est trop lourde. La taille maximale autorisée est de 5 Mo.");
+        }
+
+        // Vérification du format
         String contentType = file.getContentType();
         if (contentType == null || (!contentType.startsWith("image/jpeg") && !contentType.startsWith("image/png") && !contentType.startsWith("image/webp"))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format d'image non supporté. Formats acceptés : JPG, PNG ou WEBP.");
