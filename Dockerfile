@@ -21,14 +21,14 @@ WORKDIR /app
 # Création du dossier d'uploads local
 RUN mkdir -p /app/uploads/donations
 
-# Utilisateur non-root pour la sécurité
-RUN addgroup -S yowgifter && adduser -S yowgifter -G yowgifter
+# Utilisateur non-root (UID 1000 compatible Hugging Face, Render et standards OCI)
+RUN adduser -D -u 1000 yowgifter && chown -R yowgifter:yowgifter /app
 USER yowgifter
 
 # Copie du JAR compilé
 COPY --from=builder /app/target/*.jar app.jar
 
-ENV PORT=8080
-EXPOSE 8080
+ENV PORT=7860
+EXPOSE 7860 8080
 
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-7860} -jar app.jar"]
