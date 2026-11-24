@@ -41,8 +41,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Endpoints publics
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/donations/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/categories", "/api/v1/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/donations", "/api/v1/donations/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         
